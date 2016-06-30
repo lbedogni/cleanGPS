@@ -1,0 +1,15 @@
+torino, bari, milano, napoli, roma: some traces are very short, with onlya  couple of points. Sampling frequency is different for each vehicle, I found some which have 1 minute, some 5, some 10. What I believe is that vehicles that have a lot of record in their trace also have a fast sampling. Fastest I saw is 2 seconds. 
+We have to note that each trace is not a separate vehicle, but it is a separate trip. From the dataset website: "TravelID. A unique string identifying a trip. A trip starts when the engine is switched on and lasts until the engine is switched of for at least 30 minutes. The length of the field is 32 char."
+Rome: 127956 traces
+Torino: 60316 traces
+Bari: 85760
+Napoli: 207453
+Milano: 113870
+
+SF: sampling time is more or less 1 minute, with passenger or not. It happens that sometime the update time is higher(20 minutes). We have a total of 239 traces.
+
+Shanghai: sampling time is 1-3 minutes. We have 4316 traces.
+
+NYC: we do not have traces, but we have trips instead. Therefore, we do not have a sampling time, but the frequency of updates is given by the points we get from querying the remote services for driving directions.
+
+Beijing: sometimes the update is very large, in the order of 5 hours, sometimes 5 minutes. Maybe it's 5 minutes when there is a passenger, but we do not have any information to support this.
