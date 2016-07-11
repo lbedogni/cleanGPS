@@ -41,7 +41,20 @@ if os.path.isfile("distances" + str(city) + ".dat"):
 TIMETHRESHOLD = 1
 SPEEDTHRESHOLD = 200
 
+CACHE_NEAREST = {}
+CACHE_SPEEDS = {}
+
+fspeeds = open('roads.turin.final.csv','r')
+for line in fspeeds.readlines():
+    ll = line.split(",")
+    try:
+        CACHE_SPEEDS[ll[0].strip()] = float(ll[1].strip())
+    except:
+        CACHE_SPEEDS[ll[0].strip()] = -1
+fspeeds.close()
+
 S_BASE = "http://router.project-osrm.org/viaroute?hl=en&"
+S_BASE_NEAREST = "http://router.project-osrm.org/nearest?loc="
 S_END = "&output=gpx"
 
 def cleanFiles():
@@ -80,10 +93,41 @@ def prints(file, one,two,three,four):
     fw.write(str(one) + " " + str(two) + " " + str(three) + " " + str(four) + "\n")
     fw.close()
 
+def queryServiceNearest(lat, lon):
+    stringToGet = S_BASE_NEAREST + str(lon) + "," + str(lat)
+    req = urllib.request.Request(
+            stringToGet, 
+            data=None, 
+            headers={
+                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/35.0.1916.47 Safari/537.36'
+                }
+            )
+    toRepeat = True
+    xmlstring = ""
+    while toRepeat:
+        try:
+            xmlstring = urllib.request.urlopen(stringToGet).read().decode("utf-8")
+            #xmlstring = urllib.request.urlopen(req).read()
+            toRepeat = False
+        except urllib.error.HTTPError:
+            # Probably error 400
+            toRepeat = False
+#            ff = open('exception_errors.log','a+')
+#            ff.write(str(e.code) + " " + str(e.reason) + "\n")
+#            ff.close()
+            return False
+        except:
+            print("Connection problem. Pausing and repeating.")
+            print(stringToGet)
+            print(xmlstring)
+            time.sleep(5)
+#    print("DONE")
+    print(xmlstring)
+    return xmlstring
+
 def queryService(lat1, lon1, lat2, lon2,gpx):
     stringToGet = composeString(lat1,lon1,lat2,lon2,gpx)
     print(stringToGet)
-    #    stringToGet = "http://router.project-osrm.org/viaroute?hl=en&loc=47.064970,15.458470&loc=47.071100,15.476760&output=gpx"
     req = urllib.request.Request(
             stringToGet, 
             data=None, 
@@ -137,10 +181,30 @@ def parseQueryResponse(file, tree, id, difftime,  ttstart, line, gpx):
             if deltatime > 1:
                 timenow = ttstart
                 #print(json.load(reader(tree)))
+                print("NEAREST_DEBUG  --- NEW ROUTE --- ")
                 for item in json.loads(tree)['route_geometry']:
+                    nearest_road = -1
+                    if str(item[1]) + "," + str(item[0]) in CACHE_NEAREST:
+                        # We already have it
+                        nearest = CACHE_NEAREST[str(item[1]) + "," + str(item[0])]
+                        print("NEAREST_DEBUG ** CACHE_HIT ** Coords are: " + str(item[1]) + " " + str(item[0]) + ". NEAREST is : " + str(nearest))
+                        nearest_road = str(nearest)
+                    else:
+                        nearest = queryServiceNearest(item[1],item[0])
+                        ii = json.loads(nearest)
+                        import re
+                        nearest_road = re.sub("\(.*\)",'',str(ii['name']).strip()).strip()
+                        CACHE_NEAREST[str(item[1]) + "," + str(item[0])] = nearest_road
+                        print("NEAREST_DEBUG Coords are: " + str(item[1]) + " " + str(item[0]) + ". NEAREST is : " + str(nearest_road))
+                    if nearest_road in CACHE_SPEEDS:
+                        print("NEAREST_DEBUG We have a road for which we have a speed: " + str(nearest_road) + " -> " + str(CACHE_SPEEDS[nearest_road]))
+                    else:
+                        print("NEAREST_DEBUG Can't find speed for road: " + str(nearest_road))
                     print("*** " + str(item[1]) + " " + str(item[0]))
                     prints(file, str(id), str(math.ceil(timenow)), item[1], str(item[0]) + " # from parseQueryResponse - " + str(line).strip())
                     timenow = float(timenow) + float(deltatime)
+                for item in json.loads(tree)['route_name']:
+                    print("NEAREST_DEBUG route_name : : " + str(item))
                 return True
             else:
                 print("****")
@@ -222,6 +286,24 @@ def getTripsSF(line):
     else:
         return tt,lon,lat
 
+def getTripsDandelion(line):
+#    print(line)
+    ll = line.split(";")
+    ID = ll[0].strip()
+    #tt = math.ceil(float(ll[3].strip()))
+    from datetime import datetime
+    #tt = int(datetime.datetime.fromtimestamp(int(tt)).strftime("%Y-%m-%d $H:$M:$S"))
+    tt = datetime.strptime(ll[1].strip(), '%Y-%m-%d %H:%M:%S').timestamp()
+    #import datetime
+    #tt = int(datetime.datetime.fromtimestamp(int(tt)).strftime("%Y%m%d"))
+    #tt*= 1000
+    lat = ll[3].strip()
+    lon = ll[2].strip()
+    if lon.strip() == "" or lat.strip() == "":
+        return
+    else:
+        return ID,tt,lon,lat
+
 def getPointsFromTrips(file):
     #print("getPointsFromTrip()")
     global TIME_NEGATIVE
@@ -273,6 +355,15 @@ def getPointsFromTrips(file):
                 #Second or more round
                 [ttend,lonend,latend] = getTripsSF(line)
                 ID = file
+        elif city == "turin":
+            # Turin
+            if ttstart == -1:
+                # First round
+                [ID,ttstart,lonstart,latstart] = getTripsDandelion(line)
+                continue
+            else:
+                #Second or more round
+                [ID,ttend,lonend,latend] = getTripsDandelion(line)
 
         difftime = ttend - ttstart
         if difftime > 7200:
@@ -326,6 +417,7 @@ def checkValidTime(t):
 def checkValidPoint(lat, lon):
     lat = float(str(lat).strip())
     lon = float(str(lon).strip())
+    print(LATMIN)
     if lat > LATMIN and lat < LATMAX and lon > LONMIN and lon < LONMAX:
         return True
     else:
