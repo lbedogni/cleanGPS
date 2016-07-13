@@ -53,6 +53,13 @@ for line in fspeeds.readlines():
         CACHE_SPEEDS[ll[0].strip()] = -1
 fspeeds.close()
 
+fwNear = open('cache.nearest.csv','r')
+for line in fwNear.readlines():
+    ll = line.split(",")
+    CACHE_NEAREST[str(ll[0]) + "," + str(ll[1])] = str(ll[2]).strip()
+fwNear.close()
+
+
 S_BASE = "http://router.project-osrm.org/viaroute?hl=en&"
 S_BASE_NEAREST = "http://router.project-osrm.org/nearest?loc="
 S_END = "&output=gpx"
@@ -178,16 +185,20 @@ def parseQueryResponse(file, tree, id, difftime,  ttstart, line, gpx):
         if 'route_geometry' in jj:
             numelem = len(jj['route_geometry'])
             deltatime = difftime / numelem
+            fwDebug = open('nearest_debug.log','a')
             if deltatime > 1:
                 timenow = ttstart
                 #print(json.load(reader(tree)))
                 print("NEAREST_DEBUG  --- NEW ROUTE --- ")
+                fwDebug.write("NEAREST_DEBUG  --- NEW ROUTE --- " + "\n")
+                lastRoad = -1
                 for item in json.loads(tree)['route_geometry']:
                     nearest_road = -1
                     if str(item[1]) + "," + str(item[0]) in CACHE_NEAREST:
                         # We already have it
                         nearest = CACHE_NEAREST[str(item[1]) + "," + str(item[0])]
                         print("NEAREST_DEBUG ** CACHE_HIT ** Coords are: " + str(item[1]) + " " + str(item[0]) + ". NEAREST is : " + str(nearest))
+                        fwDebug.write("NEAREST_DEBUG ** CACHE_HIT ** Coords are: " + str(item[1]) + " " + str(item[0]) + ". NEAREST is : " + str(nearest) + "\n")
                         nearest_road = str(nearest)
                     else:
                         nearest = queryServiceNearest(item[1],item[0])
@@ -195,16 +206,30 @@ def parseQueryResponse(file, tree, id, difftime,  ttstart, line, gpx):
                         import re
                         nearest_road = re.sub("\(.*\)",'',str(ii['name']).strip()).strip()
                         CACHE_NEAREST[str(item[1]) + "," + str(item[0])] = nearest_road
+                        fwNear = open('cache.nearest.csv','a')
+                        fwNear.write(str(item[1]) + "," + str(item[0]) + "," + nearest_road + "\n")
+                        fwNear.close()
                         print("NEAREST_DEBUG Coords are: " + str(item[1]) + " " + str(item[0]) + ". NEAREST is : " + str(nearest_road))
+                        fwDebug.write("NEAREST_DEBUG Coords are: " + str(item[1]) + " " + str(item[0]) + ". NEAREST is : " + str(nearest_road) + "\n")
+
+                    if nearest_road == "":
+                        nearest_road = lastRoad
+                    else:
+                        lastRoad = nearest_road
+
                     if nearest_road in CACHE_SPEEDS:
                         print("NEAREST_DEBUG We have a road for which we have a speed: " + str(nearest_road) + " -> " + str(CACHE_SPEEDS[nearest_road]))
+                        fwDebug.write("NEAREST_DEBUG We have a road for which we have a speed: " + str(nearest_road) + " -> " + str(CACHE_SPEEDS[nearest_road]) + "\n")
                     else:
                         print("NEAREST_DEBUG Can't find speed for road: " + str(nearest_road))
+                        fwDebug.write("NEAREST_DEBUG Can't find speed for road: " + str(nearest_road) + "\n")
                     print("*** " + str(item[1]) + " " + str(item[0]))
                     prints(file, str(id), str(math.ceil(timenow)), item[1], str(item[0]) + " # from parseQueryResponse - " + str(line).strip())
                     timenow = float(timenow) + float(deltatime)
                 for item in json.loads(tree)['route_name']:
                     print("NEAREST_DEBUG route_name : : " + str(item))
+                    fwDebug.write("NEAREST_DEBUG route_name : : " + str(item) + "\n")
+                fwDebug.close()
                 return True
             else:
                 print("****")
