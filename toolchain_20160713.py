@@ -8,6 +8,8 @@ import xml.etree.ElementTree as ET
 import math
 import shutil
 
+from geopy.distance import vincenty
+
 WORKINGDIR = sys.argv[1]
 TRIPS = sys.argv[2]
 LATMIN = float(sys.argv[3])
@@ -113,7 +115,8 @@ def queryServiceNearest(lat, lon):
     xmlstring = ""
     while toRepeat:
         try:
-            xmlstring = urllib.request.urlopen(stringToGet).read().decode("utf-8")
+            print("Querying service")
+            xmlstring = urllib.request.urlopen(stringToGet, timeout = 2).read().decode("utf-8")
             #xmlstring = urllib.request.urlopen(req).read()
             toRepeat = False
         except urllib.error.HTTPError:
@@ -129,10 +132,11 @@ def queryServiceNearest(lat, lon):
             print(xmlstring)
             time.sleep(5)
 #    print("DONE")
-    print(xmlstring)
+#    print(xmlstring)
     return xmlstring
 
 def queryService(lat1, lon1, lat2, lon2,gpx):
+    print("We are querying the service to go from " + str(lat1) + "," + str(lon1) + " to " + str(lat2) + "," + str(lon2))
     stringToGet = composeString(lat1,lon1,lat2,lon2,gpx)
     print(stringToGet)
     req = urllib.request.Request(
@@ -146,7 +150,7 @@ def queryService(lat1, lon1, lat2, lon2,gpx):
     xmlstring = ""
     while toRepeat:
         try:
-            xmlstring = urllib.request.urlopen(stringToGet).read().decode("utf-8")
+            xmlstring = urllib.request.urlopen(stringToGet, timeout = 5).read().decode("utf-8")
             #xmlstring = urllib.request.urlopen(req).read()
             toRepeat = False
         except urllib.error.HTTPError:
@@ -162,7 +166,7 @@ def queryService(lat1, lon1, lat2, lon2,gpx):
             print(xmlstring)
             time.sleep(5)
 #    print("DONE")
-    print(xmlstring)
+#    print(xmlstring)
     if gpx:
         return ET.fromstring(xmlstring)
     return xmlstring
@@ -173,7 +177,7 @@ def parseQueryResponse(file, tree, id, difftime,  ttstart, line, gpx):
         deltatime = difftime / numelem
         timenow = ttstart
         for elem in tree[1]:
-            print("*** " + str(elem.attrib['lon']) + " " + str(elem.attrib['lat']))
+#            print("*** " + str(elem.attrib['lon']) + " " + str(elem.attrib['lat']))
             prints(file, str(id), str(math.ceil(timenow)), elem.attrib['lon'], elem.attrib['lat'] + " # from parseQueryResponse - " + str(line))
             #prints(file, str(id), str(timenow), elem.attrib['lon'], elem.attrib['lat'])
             timenow = float(timenow) + float(deltatime)
@@ -182,25 +186,33 @@ def parseQueryResponse(file, tree, id, difftime,  ttstart, line, gpx):
         # JSON
         import json
         jj = json.loads(tree)
+        print("ALALALA TTSTART is " + str(ttstart))
+        print("ALALALA DIFFTIME is + " + str(difftime))
         if 'route_geometry' in jj:
+            print("***********************************************************************")
             numelem = len(jj['route_geometry'])
+            if numelem >= 2:
+                numelem -= 1
             deltatime = difftime / numelem
-            fwDebug = open('nearest_debug.log','a')
+            print("TTSTART is " + str(ttstart) + ", NUMELEM is " + str(numelem) + ", DIFFTIME is " + str(difftime) + ", DELTATIME is " + str(deltatime))
+            #fwDebug = open('nearest_debug.log','a')
             if deltatime > 1:
                 timenow = ttstart
                 #print(json.load(reader(tree)))
-                print("NEAREST_DEBUG  --- NEW ROUTE --- ")
-                fwDebug.write("NEAREST_DEBUG  --- NEW ROUTE --- " + "\n")
+                #print("NEAREST_DEBUG  --- NEW ROUTE --- ")
+                #fwDebug.write("NEAREST_DEBUG  --- NEW ROUTE --- " + "\n")
                 lastRoad = -1
+                allItems = {}
                 for item in json.loads(tree)['route_geometry']:
                     nearest_road = -1
                     if str(item[1]) + "," + str(item[0]) in CACHE_NEAREST:
                         # We already have it
                         nearest = CACHE_NEAREST[str(item[1]) + "," + str(item[0])]
-                        print("NEAREST_DEBUG ** CACHE_HIT ** Coords are: " + str(item[1]) + " " + str(item[0]) + ". NEAREST is : " + str(nearest))
-                        fwDebug.write("NEAREST_DEBUG ** CACHE_HIT ** Coords are: " + str(item[1]) + " " + str(item[0]) + ". NEAREST is : " + str(nearest) + "\n")
+                        #print("NEAREST_DEBUG ** CACHE_HIT ** Coords are: " + str(item[1]) + " " + str(item[0]) + ". NEAREST is : " + str(nearest))
+                        #fwDebug.write("NEAREST_DEBUG ** CACHE_HIT ** Coords are: " + str(item[1]) + " " + str(item[0]) + ". NEAREST is : " + str(nearest) + "\n")
                         nearest_road = str(nearest)
                     else:
+                        #print("NEAREST_DEBUG ** CACHE_MISS ** Coords are: " + str(item[1]) + " " + str(item[0]))
                         nearest = queryServiceNearest(item[1],item[0])
                         ii = json.loads(nearest)
                         import re
@@ -209,27 +221,154 @@ def parseQueryResponse(file, tree, id, difftime,  ttstart, line, gpx):
                         fwNear = open('cache.nearest.csv','a')
                         fwNear.write(str(item[1]) + "," + str(item[0]) + "," + nearest_road + "\n")
                         fwNear.close()
-                        print("NEAREST_DEBUG Coords are: " + str(item[1]) + " " + str(item[0]) + ". NEAREST is : " + str(nearest_road))
-                        fwDebug.write("NEAREST_DEBUG Coords are: " + str(item[1]) + " " + str(item[0]) + ". NEAREST is : " + str(nearest_road) + "\n")
+                        #print("NEAREST_DEBUG Coords are: " + str(item[1]) + " " + str(item[0]) + ". NEAREST is : " + str(nearest_road))
+                        #fwDebug.write("NEAREST_DEBUG Coords are: " + str(item[1]) + " " + str(item[0]) + ". NEAREST is : " + str(nearest_road) + "\n")
 
                     if nearest_road == "":
                         nearest_road = lastRoad
                     else:
                         lastRoad = nearest_road
 
-                    if nearest_road in CACHE_SPEEDS:
-                        print("NEAREST_DEBUG We have a road for which we have a speed: " + str(nearest_road) + " -> " + str(CACHE_SPEEDS[nearest_road]))
-                        fwDebug.write("NEAREST_DEBUG We have a road for which we have a speed: " + str(nearest_road) + " -> " + str(CACHE_SPEEDS[nearest_road]) + "\n")
-                    else:
-                        print("NEAREST_DEBUG Can't find speed for road: " + str(nearest_road))
-                        fwDebug.write("NEAREST_DEBUG Can't find speed for road: " + str(nearest_road) + "\n")
-                    print("*** " + str(item[1]) + " " + str(item[0]))
-                    prints(file, str(id), str(math.ceil(timenow)), item[1], str(item[0]) + " # from parseQueryResponse - " + str(line).strip())
+                    if nearest_road not in CACHE_SPEEDS:
+                        fwMissing = open('turin.roads.missing','a')
+                        fwMissing.write(str(nearest_road) + "\n")
+                        fwMissing.close()
+                        #print("NEAREST_DEBUG Can't find speed for road: " + str(nearest_road))
+                        #fwDebug.write("NEAREST_DEBUG Can't find speed for road: " + str(nearest_road) + "\n")
+                        CACHE_SPEEDS[nearest_road] = -1
+
+#                    print("*** " + str(item[1]) + " " + str(item[0]))
+                    allItems[timenow] = [float(item[1]), float(item[0]), CACHE_SPEEDS[nearest_road]]
                     timenow = float(timenow) + float(deltatime)
-                for item in json.loads(tree)['route_name']:
-                    print("NEAREST_DEBUG route_name : : " + str(item))
-                    fwDebug.write("NEAREST_DEBUG route_name : : " + str(item) + "\n")
-                fwDebug.close()
+                # Now we need to compute distances bound to speeds
+                allDistances = {}
+                point1 = -1
+                point2 = -1
+                time1 = -1
+                time2 = -1
+ #               totalTime = 0
+                print(allItems)
+                summaTimes = 0
+                summaDistance = 0
+                lastIntermediate = 0
+                #print("---------------------TIMEDEBUG--------------------------------")
+                for intermediatePoint in sorted(allItems):
+                    #print("******")
+                    #print(allItems[intermediatePoint])
+                    #print(intermediatePoint)
+                    #print("ALL Points: " + " - ".join([str(allItems[intermediatePoint][0]), str(allItems[intermediatePoint][1]), str(allItems[intermediatePoint][2])]))
+                    if point1 == -1:
+                        # First time
+                        point1 = (allItems[intermediatePoint][1],allItems[intermediatePoint][0])
+                        time1 = ttstart
+                        time2 = ttstart
+                        lastIntermediate = ttstart
+                        print("First time since point1 is -1")
+                        print(point1)
+                        print(intermediatePoint)
+                    else:
+                        point2 = (allItems[intermediatePoint][1],allItems[intermediatePoint][0])
+                        distance = vincenty(point1, point2).miles * 1609.34
+                        summaDistance += distance
+                        deltaTime = intermediatePoint - lastIntermediate
+                        lastIntermediate = intermediatePoint
+                        time2 = intermediatePoint - time1
+                        if allItems[intermediatePoint][2] == -1:
+                            allItems[intermediatePoint][2] = 50
+
+                        estimatedTime = distance / (allItems[intermediatePoint][2] / 3.6)
+                        #print("TIMEDEBUG - Index = " + str(time2) + " - With " + str(distance) + " meters and " + str(allItems[intermediatePoint][2]) + " km/h the estimated time is " + str(estimatedTime))
+                        summaTimes += estimatedTime
+                        #print("TIMEDEBUG - summaTimes is now " + str(summaTimes))
+                        allDistances[time2] = [point1, point2, distance, time2, allItems[intermediatePoint][2], estimatedTime]
+#                        time1 = intermediatePoint
+#                        totalTime = intermediatePoint - time1
+                        point1 = point2
+
+                #print("TIMEDEBUG = " + str(sorted(allDistances)))
+                print("Total Distance = " + str(summaDistance) + " - Total time = " + str(summaTimes) + " - GPS delta time = " + str(difftime))
+                allMinusOne = True
+                totalDistance = 0
+                factor = 1
+                if summaTimes > 0:
+                    factor = (difftime * 1.0) / (summaTimes)
+                    fwFactor = open('allFactors.csv','a')
+                    fwFactor.write(str(factor) + "\n")
+                    fwFactor.close()
+                for item in allDistances:
+                    totalDistance += allDistances[item][2]
+                    if allDistances[item][4] > -1:
+                        allMinusOne = False
+
+                avgSpeed = totalDistance / (difftime * 1.0)
+                print("THE AVG SPEED IS " + str(avgSpeed))
+                if avgSpeed > 50:
+                    fwDDD = open('highspeeds.txt','a')
+                    countAllDist = 0
+                    lastItem = -1
+                    fwDDD.write(id + " - ")
+                    for item in allDistances:
+                        if countAllDist == 0:
+                            fwDDD.write(str(allDistances[item]))
+                            countAllDist = 1
+                        lastItem = allDistances[item]
+                    fwDDD.write(" - " + str(lastItem[0]) + " - " + str(avgSpeed) + " - " + str(totalDistance) + " - " + str(difftime) + " --- " + str(line) + "\n")
+                    fwDDD.close()
+                else:
+                    fwDDD = open('lowspeeds.txt','a')
+                    countAllDist = 0
+                    lastItem = -1
+                    fwDDD.write(id + " - ")
+                    for item in allDistances:
+                        if countAllDist == 0:
+                            fwDDD.write(str(allDistances[item]))
+                            countAllDist = 1
+                        lastItem = allDistances[item]
+                    if (lastItem != -1):
+                        print(lastItem)
+                        fwDDD.write(" - " + str(lastItem[0]) + " - " + str(avgSpeed) + " - " + str(totalDistance) + " - " + str(difftime) + " --- " + str(line) + "\n")
+                    else:
+                        fwDDD.write("\n")
+                    fwDDD.close()
+
+#                if not allMinusOne:
+#                    print("********** We have at least a speed greater than -1 ********")
+#                    print(allDistances)
+                    
+
+                incrementalTime = ttstart
+                #print("TIMEDEBUG *** START - FACTOR is " + str(factor) + " - WE START AT " + str(ttstart) + " with a difftime of " + str(difftime) + " - summaTimes is " + str(summaTimes) + " - We finish at " + str(difftime + ttstart) + " ***")
+                lastTime = -1
+                for itemDistance in sorted(allDistances):
+                    # Here we should compute all distances and times
+                    #print("TIMEDEBUG - Checking item " + str(allDistances[itemDistance]))
+#                    print("We write: " + str(incrementalTime) + " - " + str(allDistances[itemDistance][1][0]) + " - " + str(allDistances[itemDistance][1][1]))
+                    if lastTime == -1:
+                        incrementalTime = ttstart
+                        estimatedTime = float(allDistances[itemDistance][5])
+                        #print("TIMEDEBUG - TIME NOW IS " + str(incrementalTime))
+                        prints(file, str(id), str(incrementalTime), allDistances[itemDistance][0][0], str(allDistances[itemDistance][0][1]) + " #--- " + str(ttstart))
+                        incrementalTime += (estimatedTime * factor)
+                        prints(file, str(id), str(incrementalTime), allDistances[itemDistance][1][0], str(allDistances[itemDistance][1][1]) + " #--- " + str(ttstart))
+                    else:
+                        estimatedTime = float(allDistances[itemDistance][5])
+                        incrementalTime += (estimatedTime * factor)
+                        #print("TIMEDEBUG - ESTIMATED TIME is " + str(estimatedTime) + " with factor(" + str(estimatedTime * factor) + ") - TIME NOW IS " + str(int(incrementalTime)))
+                        prints(file, str(id), str(int(incrementalTime)), allDistances[itemDistance][1][0], str(allDistances[itemDistance][1][1]) + " #--- " + str(ttstart))
+                    lastTime = itemDistance
+#                    print("We increment by " + str(itemDistance))
+                
+                # Write last point
+#                if lastTime != -1:
+#                    prints(file, str(id), str(ttstart + difftime), allDistances[lastTime][1][0], str(allDistances[lastTime][1][1]) + " #--- " + str(ttstart))
+#                    estimatedTime = float(allDistances[lastTime][5])
+#                    print("TIMEDEBUG - ESTIMATED TIME is " + str(estimatedTime) + " with factor(" + str(estimatedTime * factor) + ") - TIME NOW IS " + str(incrementalTime))
+                
+                #for intermediatePoint in json.loads(tree)['route_name']:
+ #                   print("NEAREST_DEBUG route_name : : " + str(intermediatePoint))
+                    #fwDebug.write("NEAREST_DEBUG route_name : : " + str(intermediatePoint) + "\n")
+                #fwDebug.close()
+                #print("*** END ***")
                 return True
             else:
                 print("****")
@@ -243,7 +382,7 @@ def parseQueryResponse(file, tree, id, difftime,  ttstart, line, gpx):
                 counter = 1
                 for item in json.loads(tree)['route_geometry']:
                     if counter == 1 or counter % deltaitems == 0:
-                        print("*** " + str(item[1]) + " " + str(item[0]))
+#                        print("*** " + str(item[1]) + " " + str(item[0]))
                         prints(file, str(id), str(math.ceil(timenow)), item[1], str(item[0]) + " # from parseQueryResponse - " + str(line).strip())
                         timenow = float(timenow) + 1
                     counter += 1
@@ -407,6 +546,7 @@ def getPointsFromTrips(file):
         elif difftime > 0:
             if checkValidPoint(latstart, lonstart) and checkValidPoint(latend, lonend) and (checkValidTime(ttstart) and checkValidTime(ttend)):
      #           prints(OUTPUTDIR + "/" + str(file) + "_" + str(ID) + ".csv", str(ID), str(ttstart), latstart, lonstart)
+                print("I AM QUERYING THE SERVICE HERE")
                 tree = queryService(latstart, lonstart, latend, lonend, False)
                 if not tree or not parseQueryResponse(OUTPUTDIR + "/" + str(file) + "_" + str(ID) + ".csv", tree, str(ID), difftime,  ttstart, line, False):
                     if not tree:
@@ -422,7 +562,7 @@ def getPointsFromTrips(file):
             open('errors_' + str(sys.argv[7]) + '.data','a+').write(line)
 #            print("difftime <= 0:" + str(line))
 
-        if city == "rome" or city == "sf":
+        if city == "rome" or city == "sf" or city == "turin":
             ttstart = ttend
             lonstart = lonend
             latstart = latend
@@ -433,20 +573,20 @@ def checkValidTime(t):
     t = float(t)
     if t > DAYSTART and t < DAYEND:
         return True
-    print("NOT Valid Time")
-    print(t)
-    print(DAYSTART)
-    print(DAYEND)
+#    print("NOT Valid Time")
+#    print(t)
+#    print(DAYSTART)
+#    print(DAYEND)
     return False
 
 def checkValidPoint(lat, lon):
     lat = float(str(lat).strip())
     lon = float(str(lon).strip())
-    print(LATMIN)
+#    print(LATMIN)
     if lat > LATMIN and lat < LATMAX and lon > LONMIN and lon < LONMAX:
         return True
     else:
-        print("NOT Valid Point")
+#        print("NOT Valid Point")
         return False
 #    changed = False
 #    global FOUNDLATMAX
