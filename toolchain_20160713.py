@@ -457,7 +457,7 @@ def getTripsDandelion(line):
     #tt = math.ceil(float(ll[3].strip()))
     from datetime import datetime
     #tt = int(datetime.datetime.fromtimestamp(int(tt)).strftime("%Y-%m-%d $H:$M:$S"))
-    tt = datetime.strptime(ll[1].strip(), '%Y-%m-%d %H:%M:%S').timestamp()
+    tt = int(datetime.strptime(ll[1].strip(), '%Y-%m-%d %H:%M:%S').timestamp())
     #import datetime
     #tt = int(datetime.datetime.fromtimestamp(int(tt)).strftime("%Y%m%d"))
     #tt*= 1000
@@ -558,7 +558,7 @@ def getPointsFromTrips(file):
         else:
             print("HERE")
             TIME_NEGATIVE += 1
-            open('stats_' + str(sys.argv[7]) + '.data','w+').write("TIME_ZERO = " + str(TIME_ZERO) + ", TIME_LESS_ZERO = " + str(TIME_NEGATIVE) + "\n")
+            open('stats_' + str(sys.argv[7]) + '.data','a+').write("TIME_ZERO = " + str(TIME_ZERO) + ", TIME_LESS_ZERO = " + str(TIME_NEGATIVE) + "\n")
             open('errors_' + str(sys.argv[7]) + '.data','a+').write(line)
 #            print("difftime <= 0:" + str(line))
 
@@ -641,6 +641,7 @@ def cleanTrace(file):
         except:
             thistime = float(ll[1])
             #print("Assuming time in seconds on file: " + file + ", line: " + str(line).strip())
+        thistime = int(thistime)
         difftime = thistime - lasttime
         if not checkValidPoint(float(ll[2]), float(ll[3])):
             continue
