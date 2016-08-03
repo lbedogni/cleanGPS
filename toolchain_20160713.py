@@ -46,7 +46,7 @@ SPEEDTHRESHOLD = 200
 CACHE_NEAREST = {}
 CACHE_SPEEDS = {}
 
-fspeeds = open('roads.turin.final.csv','r')
+fspeeds = open('roads.' + str(PREFIX) + '.final.csv','r')
 for line in fspeeds.readlines():
     ll = line.split(",")
     try:
@@ -55,7 +55,7 @@ for line in fspeeds.readlines():
         CACHE_SPEEDS[ll[0].strip()] = -1
 fspeeds.close()
 
-fwNear = open('cache.nearest.csv','r')
+fwNear = open(str(PREFIX) + '.cache.nearest.csv','r')
 for line in fwNear.readlines():
     ll = line.split(",")
     CACHE_NEAREST[str(ll[0]) + "," + str(ll[1])] = str(ll[2]).strip()
@@ -218,7 +218,7 @@ def parseQueryResponse(file, tree, id, difftime,  ttstart, line, gpx):
                         import re
                         nearest_road = re.sub("\(.*\)",'',str(ii['name']).strip()).strip()
                         CACHE_NEAREST[str(item[1]) + "," + str(item[0])] = nearest_road
-                        fwNear = open('cache.nearest.csv','a')
+                        fwNear = open(str(PREFIX) + '.cache.nearest.csv','a')
                         fwNear.write(str(item[1]) + "," + str(item[0]) + "," + nearest_road + "\n")
                         fwNear.close()
                         #print("NEAREST_DEBUG Coords are: " + str(item[1]) + " " + str(item[0]) + ". NEAREST is : " + str(nearest_road))
@@ -230,7 +230,7 @@ def parseQueryResponse(file, tree, id, difftime,  ttstart, line, gpx):
                         lastRoad = nearest_road
 
                     if nearest_road not in CACHE_SPEEDS:
-                        fwMissing = open('turin.roads.missing','a')
+                        fwMissing = open(str(PREFIX) + 'roads.missing','a')
                         fwMissing.write(str(nearest_road) + "\n")
                         fwMissing.close()
                         #print("NEAREST_DEBUG Can't find speed for road: " + str(nearest_road))
@@ -491,15 +491,15 @@ def getPointsFromTrips(file):
                 [ID,ttstart,ttend,lonstart,latstart,lonend,latend] = getTripsNYC(line)
             else:
                 continue
-        elif city == "rome":
+#        elif city == "rome":
             # ROME
-            if ttstart == -1:
+#            if ttstart == -1:
                 #First round
-                [ID,ttstart,lonstart,latstart] = getTripsRome(line)
-                continue
-            else:
+#                [ID,ttstart,lonstart,latstart] = getTripsRome(line)
+#                continue
+#            else:
                 #Second or more round
-                [ID,ttend,lonend,latend] = getTripsRome(line)
+#                [ID,ttend,lonend,latend] = getTripsRome(line)
         elif city == "beijing":
             # ROME
             if ttstart == -1:
@@ -519,8 +519,8 @@ def getPointsFromTrips(file):
                 #Second or more round
                 [ttend,lonend,latend] = getTripsSF(line)
                 ID = file
-        elif city == "turin":
-            # Turin
+        elif city in ["turin","palermo","milan","rome","bari"]:
+            # Dandelion
             if ttstart == -1:
                 # First round
                 [ID,ttstart,lonstart,latstart] = getTripsDandelion(line)
@@ -530,14 +530,14 @@ def getPointsFromTrips(file):
                 [ID,ttend,lonend,latend] = getTripsDandelion(line)
 
         difftime = ttend - ttstart
-        if difftime > 7200:
+        if difftime > 3600:
             print("Different trip, treat it as new one")
             ttstart = ttend
             lonstart = lonend
             latstart = latend
             continue
-
-        if difftime == 0 and (city == "rome" or city == "sf"):
+        
+        if difftime == 0 and (city in ["rome","sf","turin","palermo","milan","bari"]):
             prints(OUTPUTDIR + "/" + str(file) + "_" + str(ID) + ".csv", str(ID), str(ttend), latend, lonend)
         elif difftime == 0:
             TIME_ZERO += 1
@@ -562,7 +562,8 @@ def getPointsFromTrips(file):
             open('errors_' + str(sys.argv[7]) + '.data','a+').write(line)
 #            print("difftime <= 0:" + str(line))
 
-        if city == "rome" or city == "sf" or city == "turin":
+        allCities = ["rome","sf","turin","bari","palermo","milan","beijing","shanghai"]
+        if city in allCities:
             ttstart = ttend
             lonstart = lonend
             latstart = latend
@@ -629,7 +630,6 @@ def cleanTrace(file):
     ff = open(file,'w+')
     ff.writelines(lines)
     ff.close()
-    print("FINISHED")
     ff = open(file, 'r')
     print(sys.argv[7] + " - Cleaning file " + file)
 
@@ -642,11 +642,12 @@ def cleanTrace(file):
             thistime = float(ll[1])
             #print("Assuming time in seconds on file: " + file + ", line: " + str(line).strip())
         thistime = int(thistime)
-        difftime = thistime - lasttime
-        if not checkValidPoint(float(ll[2]), float(ll[3])):
-            continue
+        difftime = int(thistime - lasttime)
+#        if not checkValidPoint(float(ll[2]), float(ll[3])):
+#            print("Point not valid")
+#            continue
 
-        if lastlng == -1:
+        if lastlng == -1 or difftime > 3600:
            lasttime = thistime
            lastlat = ll[2]
            lastlng = ll[3]
@@ -685,10 +686,10 @@ def cleanTrace(file):
             for i in range(1,numtime):
                 thislat = float(thislat) + float(difflat)
                 thislng = float(thislng) + float(difflng)
-                if not checkValidPoint(thislat, thislng):
-                    continue
-                else:
-                    prints(FINALDIR + "/" + os.path.basename(file), ll[0],lasttime + i * increment,thislat,str(thislng) + " #INTERPOLATE POINT")
+                prints(FINALDIR + "/" + os.path.basename(file), ll[0],lasttime + i * increment,thislat,str(thislng) + " #INTERPOLATE POINT")
+#                if not checkValidPoint(thislat, thislng):
+#                    continue
+#                else:
             prints(FINALDIR + "/" + os.path.basename(file), ll[0],ll[1],ll[2],ll[3].strip() + " #LAST INTERPOLATE POINT")
             lasttime = float(ll[1])
             lastlat = ll[2]
@@ -770,12 +771,15 @@ if TRIPS:
     counterFiles = 1
     print(sys.argv[7] + " - Now starting to clean the trace")
     for file in os.listdir(OUTPUTDIR):
-        if os.path.isfile(OUTPUTDIR + "/.done_" + sys.argv[7] + "_" + file):
+        #if os.path.isfile(OUTPUTDIR + "/.done_" + sys.argv[7] + "_" + file):
+        #    continue
+        if ".done" in file:
             continue
         print(str(counterFiles) + " files done")
         counterFiles += 1
         cleanTrace(OUTPUTDIR + "/" + file)
-        ftemp = open(OUTPUTDIR + "/.done_" + sys.argv[7] + "_" + file, 'w+').close()
+        if os.path.isfile(FINALDIR + "/" + os.path.basename(file)):
+            ftemp = open(OUTPUTDIR + "/.done_" + sys.argv[7] + "_" + file, 'w+').close()
 
 else:
     cleanTrace(WORKINGDIR + "/" + file)
