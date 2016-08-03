@@ -1,3 +1,4 @@
+#!/usr/bin/python
 from imposm.parser import OSMParser
 import sys
 
@@ -47,7 +48,7 @@ class HighwayCounter(object):
 # instantiate counter and parser and start parsing
 counter = HighwayCounter()
 p = OSMParser(concurrency=4, ways_callback=counter.ways)
-p.parse(sys.argv[1])
+p.parse(sys.argv[1] + ".osm")
 
 print "Finished everything"
 
@@ -59,8 +60,8 @@ print counter.maxspeed
 print speeds
 
 print allRoads
-fw = open('roads.turin.csv','w')
-fw2 = open('roads.turin.final.csv','w')
+fw = open('roads.' + sys.argv[1] + '.csv','w')
+fw2 = open('roads.' + sys.argv[1] + '.final.csv','w')
 for key in allRoads:
     print("Road: " + key.encode('utf-8'))
     fw.write(key.encode('utf-8') + "," + str(allRoads[key]) + "\n")
