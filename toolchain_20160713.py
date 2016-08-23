@@ -7,6 +7,7 @@ import urllib.request
 import xml.etree.ElementTree as ET
 import math
 import shutil
+import math
 
 from geopy.distance import vincenty
 
@@ -61,7 +62,6 @@ for line in fwNear.readlines():
     CACHE_NEAREST[str(ll[0]) + "," + str(ll[1])] = str(ll[2]).strip()
 fwNear.close()
 
-
 S_BASE = "http://router.project-osrm.org/viaroute?hl=en&"
 S_BASE_NEAREST = "http://router.project-osrm.org/nearest?loc="
 S_END = "&output=gpx"
@@ -93,13 +93,13 @@ def measure(lat1, lon1, lat2, lon2):
 
 def composeString(lats,lons,late,lone,gpx):
     if (gpx):
-        return S_BASE + "loc=" + str(lons) + "," + str(lats) + "&loc=" + str(lone).strip() + "," + str(late).strip() + S_END
-    return S_BASE + "loc=" + str(lons) + "," + str(lats) + "&loc=" + str(lone).strip() + "," + str(late).strip() + "&output=json&compression=false"
+        return S_BASE + "loc=" + str(lats) + "," + str(lons) + "&loc=" + str(late).strip() + "," + str(lone).strip() + S_END
+    return S_BASE + "loc=" + str(lats) + "," + str(lons) + "&loc=" + str(late).strip() + "," + str(lone).strip() + "&output=json&compression=false"
     
 def prints(file, one,two,three,four):
 #    print(file)
     fw = open(file, "a+")
-    fw.write(str(one) + " " + str(two) + " " + str(three) + " " + str(four) + "\n")
+    fw.write(str(one) + " " + str(math.floor(float(two))) + " " + str(three) + " " + str(four) + "\n")
     fw.close()
 
 def queryServiceNearest(lat, lon):
@@ -399,10 +399,10 @@ def getTripsNYC(line):
     ll = line.split(",")
     ttstart = math.ceil(time.mktime(time.strptime(ll[5], "%Y-%m-%d %H:%M:%S")))
     ttend = math.ceil(time.mktime(time.strptime(ll[6], "%Y-%m-%d %H:%M:%S")))
-    latstart = ll[10].strip()
-    lonstart = ll[11].strip()
-    latend = ll[12].strip()
-    lonend = ll[13].strip()
+    lonstart = ll[10].strip()
+    latstart = ll[11].strip()
+    lonend = ll[12].strip()
+    latend = ll[13].strip()
     if lonstart.strip() == "" or lonend.strip() == "" or latstart.strip() == "" or latend.strip() == "":
         return
     else:
@@ -461,8 +461,8 @@ def getTripsDandelion(line):
     #import datetime
     #tt = int(datetime.datetime.fromtimestamp(int(tt)).strftime("%Y%m%d"))
     #tt*= 1000
-    lat = ll[3].strip()
-    lon = ll[2].strip()
+    lat = ll[2].strip()
+    lon = ll[3].strip()
     if lon.strip() == "" or lat.strip() == "":
         return
     else:
@@ -587,7 +587,8 @@ def checkValidPoint(lat, lon):
     if lat > LATMIN and lat < LATMAX and lon > LONMIN and lon < LONMAX:
         return True
     else:
-#        print("NOT Valid Point")
+        print("NOT Valid Point")
+        print(str(lat) + "," + str(LATMIN))
         return False
 #    changed = False
 #    global FOUNDLATMAX
@@ -649,17 +650,17 @@ def cleanTrace(file):
 
         if lastlng == -1 or difftime > 3600:
            lasttime = thistime
-           lastlat = ll[2]
-           lastlng = ll[3]
+           lastlng = ll[2]
+           lastlat = ll[3]
 #           print("****", ll[0],lasttime,lastlat,str(lastlng).strip())
-           prints(FINALDIR + "/" + os.path.basename(file), ll[0],lasttime,lastlat,str(lastlng).strip())
+           prints(FINALDIR + "/" + os.path.basename(file), ll[0],lasttime,str(lastlng),str(lastlat).strip())
             
         elif difftime > TIMETHRESHOLD:
 #            print("**** difftime > THRESHOLD. line = " + line.strip())
 #            print("****** lastlat: " + lastlat,  ", lastlng: ", lastlng)
             # We need to interpolate
             # In difftime seconds we need to go form lastlat,lastlng to ll[2],ll[3], every deltasec
-            dist = measure(float(ll[2]),float(ll[3]),float(lastlat),float(lastlng))
+            dist = measure(float(ll[2]),float(ll[3]),float(lastlng),float(lastlat))
             difftime = max(1,difftime)
             speed = dist/difftime
 #            if speed > SPEEDTHRESHOLD:
@@ -673,8 +674,8 @@ def cleanTrace(file):
 #                prints(FINALDIR + "/" + os.path.basename(file), ll[0],lasttime,lastlat,str(lastlng).strip())
 #                continue
             numtime = int(math.ceil(difftime / deltasec))
-            difflat = (float(ll[2]) - float(lastlat))/numtime
-            difflng = (float(ll[3]) - float(lastlng))/numtime
+            difflng = (float(ll[2]) - float(lastlng))/numtime
+            difflat = (float(ll[3]) - float(lastlat))/numtime
             thislat = float(lastlat)
             thislng = float(lastlng)
             #lasttime = thistime
@@ -692,12 +693,12 @@ def cleanTrace(file):
 #                else:
             prints(FINALDIR + "/" + os.path.basename(file), ll[0],ll[1],ll[2],ll[3].strip() + " #LAST INTERPOLATE POINT")
             lasttime = float(ll[1])
-            lastlat = ll[2]
-            lastlng = ll[3]
+            lastlng = ll[2]
+            lastlat = ll[3]
 
         else:
 #            print("NO INTERPOLATE",lasttime,thistime)
-            dist = measure(float(ll[2]),float(ll[3]),float(lastlat),float(lastlng))
+            dist = measure(float(ll[3]),float(ll[2]),float(lastlng),float(lastlat))
             difftime = max(1,difftime)
             speed = dist/difftime
             if speed < 200:
@@ -766,13 +767,14 @@ if TRIPS:
             for item in os.listdir(OUTPUTDIR):
                 if file in item:
                     os.remove(OUTPUTDIR + "/" + item)
+            print("Parsing")
             getPointsFromTrips(file)
             ftemp = open(WORKINGDIR + "/.done_" + sys.argv[7] + "_" + file, 'w+').close()
     counterFiles = 1
     print(sys.argv[7] + " - Now starting to clean the trace")
     for file in os.listdir(OUTPUTDIR):
-        #if os.path.isfile(OUTPUTDIR + "/.done_" + sys.argv[7] + "_" + file):
-        #    continue
+        if os.path.isfile(OUTPUTDIR + "/.done_" + sys.argv[7] + "_" + file):
+            continue
         if ".done" in file:
             continue
         print(str(counterFiles) + " files done")
