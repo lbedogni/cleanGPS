@@ -24,11 +24,11 @@ then
 	./toolchain_20160713.py $1 True 38 13 38.5 13.5 ${DANTIMESTART} ${DANTIMESTOP} palermo
 elif [ $2 == "sanfrancisco" ]
 then
-	./toolchain_20160713.py $1 True 37.5 -122.6 38 -122.2 20080428 20080429 sanfrancisco
+	./toolchain_20160713.py $1 True 37 -122.6 38 -122 20080528 20080529 sf
 elif [ $2 == "beijing" ]
 then
 	./toolchain_20160713.py $1 True 39.3 115.2 41.1 117.6 20080205 20080206 beijing
 elif [ $2 == "shanghai" ]
 then
-	./toolchain_20160713.py $1 True 30.5 120.5 32 122.2 20080205 20080206 beijing
+	./toolchain_20160713.py $1 True 30.5 120.5 32 122.2 20080205 20080206 shanghai
 fi

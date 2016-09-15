@@ -62,8 +62,8 @@ for line in fwNear.readlines():
     CACHE_NEAREST[str(ll[0]) + "," + str(ll[1])] = str(ll[2]).strip()
 fwNear.close()
 
-S_BASE = "http://router.project-osrm.org/viaroute?hl=en&"
-S_BASE_NEAREST = "http://router.project-osrm.org/nearest?loc="
+S_BASE = "http://router.project-osrm.org/route/v1/driving/"
+S_BASE_NEAREST = "http://router.project-osrm.org/nearest/v1/driving/"
 S_END = "&output=gpx"
 
 def cleanFiles():
@@ -92,9 +92,12 @@ def measure(lat1, lon1, lat2, lon2):
     return d * 1000
 
 def composeString(lats,lons,late,lone,gpx):
+    #if (gpx):
+    #    return S_BASE + "loc=" + str(lats) + "," + str(lons) + "&loc=" + str(late).strip() + "," + str(lone).strip() + S_END
+    #return S_BASE + "loc=" + str(lats) + "," + str(lons) + "&loc=" + str(late).strip() + "," + str(lone).strip() + "&output=json&compression=false"
     if (gpx):
         return S_BASE + "loc=" + str(lats) + "," + str(lons) + "&loc=" + str(late).strip() + "," + str(lone).strip() + S_END
-    return S_BASE + "loc=" + str(lats) + "," + str(lons) + "&loc=" + str(late).strip() + "," + str(lone).strip() + "&output=json&compression=false"
+    return S_BASE + str(lons).strip() + "," + str(lats).strip() + ";" + str(lone).strip() + "," + str(late).strip() + "?geometries=geojson"
     
 def prints(file, one,two,three,four):
 #    print(file)
@@ -103,7 +106,7 @@ def prints(file, one,two,three,four):
     fw.close()
 
 def queryServiceNearest(lat, lon):
-    stringToGet = S_BASE_NEAREST + str(lon) + "," + str(lat)
+    stringToGet = S_BASE_NEAREST + str(lon) + "," + str(lat) + "?number=1"
     req = urllib.request.Request(
             stringToGet, 
             data=None, 
@@ -116,16 +119,22 @@ def queryServiceNearest(lat, lon):
     while toRepeat:
         try:
             print("Querying service")
+            print(stringToGet)
             xmlstring = urllib.request.urlopen(stringToGet, timeout = 2).read().decode("utf-8")
             #xmlstring = urllib.request.urlopen(req).read()
             toRepeat = False
-        except urllib.error.HTTPError:
+        except urllib.error.HTTPError as e:
             # Probably error 400
-            toRepeat = False
+#            toRepeat = False
 #            ff = open('exception_errors.log','a+')
 #            ff.write(str(e.code) + " " + str(e.reason) + "\n")
 #            ff.close()
-            return False
+#            return False
+            print("ERROR in the nearest query")
+            print(e.code)
+            print(e.reason)
+            print(e)
+            time.sleep(10)
         except:
             print("Connection problem. Pausing and repeating.")
             print(stringToGet)
@@ -150,29 +159,37 @@ def queryService(lat1, lon1, lat2, lon2,gpx):
     xmlstring = ""
     while toRepeat:
         try:
+            print("Querying now")
+            print(stringToGet)
             xmlstring = urllib.request.urlopen(stringToGet, timeout = 5).read().decode("utf-8")
+            print(xmlstring)
+            print("******")
             #xmlstring = urllib.request.urlopen(req).read()
             toRepeat = False
-        except urllib.error.HTTPError:
+        except urllib.error.HTTPError as e:
             # Probably error 400
-            toRepeat = False
+#            toRepeat = False
+            print("HTTP Error")
+            print(str(e) + " - " + str(e.code) + " - " + str(e.reason))
 #            ff = open('exception_errors.log','a+')
 #            ff.write(str(e.code) + " " + str(e.reason) + "\n")
 #            ff.close()
             return False
+            time.sleep(5)
         except:
             print("Connection problem. Pausing and repeating.")
             print(stringToGet)
             print(xmlstring)
             time.sleep(5)
 #    print("DONE")
-#    print(xmlstring)
+    print(xmlstring)
     if gpx:
         return ET.fromstring(xmlstring)
     return xmlstring
 
 def parseQueryResponse(file, tree, id, difftime,  ttstart, line, gpx):
     if gpx:
+        print("This is GPX")
         numelem = max(len(tree[1]), 1)
         deltatime = difftime / numelem
         timenow = ttstart
@@ -185,12 +202,18 @@ def parseQueryResponse(file, tree, id, difftime,  ttstart, line, gpx):
     else:
         # JSON
         import json
+        print(tree)
         jj = json.loads(tree)
         print("ALALALA TTSTART is " + str(ttstart))
         print("ALALALA DIFFTIME is + " + str(difftime))
-        if 'route_geometry' in jj:
+        jj = jj['routes'][0]
+        print("------")
+        print(jj)
+        print(jj['geometry'])
+        print("------")
+        if 'geometry' in jj:
             print("***********************************************************************")
-            numelem = len(jj['route_geometry'])
+            numelem = len(jj['geometry'])
             if numelem >= 2:
                 numelem -= 1
             deltatime = difftime / numelem
@@ -203,10 +226,12 @@ def parseQueryResponse(file, tree, id, difftime,  ttstart, line, gpx):
                 #fwDebug.write("NEAREST_DEBUG  --- NEW ROUTE --- " + "\n")
                 lastRoad = -1
                 allItems = {}
-                for item in json.loads(tree)['route_geometry']:
+                for item in jj['geometry']['coordinates']:
                     nearest_road = -1
+                    #print(str(item[1]) + "," + str(item[0]))
                     if str(item[1]) + "," + str(item[0]) in CACHE_NEAREST:
                         # We already have it
+                     #   print("CACHE HIT")
                         nearest = CACHE_NEAREST[str(item[1]) + "," + str(item[0])]
                         #print("NEAREST_DEBUG ** CACHE_HIT ** Coords are: " + str(item[1]) + " " + str(item[0]) + ". NEAREST is : " + str(nearest))
                         #fwDebug.write("NEAREST_DEBUG ** CACHE_HIT ** Coords are: " + str(item[1]) + " " + str(item[0]) + ". NEAREST is : " + str(nearest) + "\n")
@@ -214,7 +239,8 @@ def parseQueryResponse(file, tree, id, difftime,  ttstart, line, gpx):
                     else:
                         #print("NEAREST_DEBUG ** CACHE_MISS ** Coords are: " + str(item[1]) + " " + str(item[0]))
                         nearest = queryServiceNearest(item[1],item[0])
-                        ii = json.loads(nearest)
+                        ii = json.loads(nearest)['waypoints'][0]
+                        print(ii)
                         import re
                         nearest_road = re.sub("\(.*\)",'',str(ii['name']).strip()).strip()
                         CACHE_NEAREST[str(item[1]) + "," + str(item[0])] = nearest_road
@@ -380,7 +406,7 @@ def parseQueryResponse(file, tree, id, difftime,  ttstart, line, gpx):
                 timenow = ttstart
                 deltaitems = numelem / difftime
                 counter = 1
-                for item in json.loads(tree)['route_geometry']:
+                for item in jj['geometry']['coordinates']:
                     if counter == 1 or counter % deltaitems == 0:
 #                        print("*** " + str(item[1]) + " " + str(item[0]))
                         prints(file, str(id), str(math.ceil(timenow)), item[1], str(item[0]) + " # from parseQueryResponse - " + str(line).strip())
@@ -437,14 +463,14 @@ def getTripsBeijing(line):
         return ID,tt,lon,lat
     
 def getTripsSF(line):
-#    print(line)
+    #print(line)
     ll = line.split(" ")
     tt = math.ceil(float(ll[3].strip()))
     #import datetime
     #tt = int(datetime.datetime.fromtimestamp(int(tt)).strftime("%Y%m%d"))
     #tt*= 1000
-    lat = ll[1].strip()
-    lon = ll[0].strip()
+    lat = ll[0].strip()
+    lon = ll[1].strip()
     if lon.strip() == "" or lat.strip() == "":
         return
     else:
@@ -531,7 +557,10 @@ def getPointsFromTrips(file):
 
         difftime = ttend - ttstart
         if difftime > 3600:
-            print("Different trip, treat it as new one")
+            #print("Difftime is " + str(difftime) + ". Different trip, treat it as new one")
+            #print("****")
+            #print("Print - " + str(line))
+            #print("****")
             ttstart = ttend
             lonstart = lonend
             latstart = latend
@@ -588,7 +617,8 @@ def checkValidPoint(lat, lon):
         return True
     else:
         print("NOT Valid Point")
-        print(str(lat) + "," + str(LATMIN))
+        print(str(lat) + "," + str(LATMIN) +"-"+str(LATMAX))
+        print(str(lon) + "," + str(LONMIN) +"-"+str(LONMAX))
         return False
 #    changed = False
 #    global FOUNDLATMAX
