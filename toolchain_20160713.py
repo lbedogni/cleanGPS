@@ -174,8 +174,17 @@ def queryService(lat1, lon1, lat2, lon2,gpx):
 #            ff = open('exception_errors.log','a+')
 #            ff.write(str(e.code) + " " + str(e.reason) + "\n")
 #            ff.close()
-            return False
+#            return False
             time.sleep(5)
+            stringToGet = composeString(float(lat1) + 0.001,float(lon1) + 0.001,float(lat2) + 0.001,float(lon2) + 0.001,gpx)
+            print("We have changed the coordinates to: " + str(stringToGet))
+            req = urllib.request.Request(
+                    stringToGet, 
+                    data=None, 
+                    headers={
+                        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/35.0.1916.47 Safari/537.36'
+                        }
+                    )
         except:
             print("Connection problem. Pausing and repeating.")
             print(stringToGet)
@@ -446,6 +455,32 @@ def getTripsRome(line):
     else:
         return ID,tt,lon,lat
 
+def getTripsShanghai(line):
+    print(line)
+    ll = line.split(",")
+    ID = ll[0].strip()
+    #tt = math.ceil(float(ll[1].strip()))
+    from datetime import datetime
+    #tt = int(datetime.datetime.fromtimestamp(int(tt)).strftime("%Y-%m-%d $H:$M:$S"))
+    tt = datetime.strptime(ll[1].strip(), '%Y-%m-%d %H:%M:%S').timestamp()
+    print(tt)
+    lon = ll[2].strip()
+    lat = ll[3].strip()
+    if lon.strip() == "" or lat.strip() == "":
+        return
+    else:
+        return ID,tt,lon,lat
+    
+def getTripsSF(line):
+    #print(line)
+    ll = line.split(" ")
+    tt = math.ceil(float(ll[3].strip()))
+    #import datetime
+    #tt = int(datetime.datetime.fromtimestamp(int(tt)).strftime("%Y%m%d"))
+    #tt*= 1000
+    lat = ll[0].strip()
+    lon = ll[1].strip()
+
 def getTripsBeijing(line):
     print(line)
     ll = line.split(",")
@@ -455,8 +490,8 @@ def getTripsBeijing(line):
     #tt = int(datetime.datetime.fromtimestamp(int(tt)).strftime("%Y-%m-%d $H:$M:$S"))
     tt = datetime.strptime(ll[1].strip(), '%Y-%m-%d %H:%M:%S').timestamp()
     print(tt)
-    lat = ll[2].strip()
-    lon = ll[3].strip()
+    lon = ll[2].strip()
+    lat = ll[3].strip()
     if lon.strip() == "" or lat.strip() == "":
         return
     else:
@@ -517,17 +552,15 @@ def getPointsFromTrips(file):
                 [ID,ttstart,ttend,lonstart,latstart,lonend,latend] = getTripsNYC(line)
             else:
                 continue
-#        elif city == "rome":
-            # ROME
-#            if ttstart == -1:
+        elif city == "shanghai":
+            if ttstart == -1:
                 #First round
-#                [ID,ttstart,lonstart,latstart] = getTripsRome(line)
-#                continue
-#            else:
+                [ID,ttstart,lonstart,latstart] = getTripsShanghai(line)
+                continue
+            else:
                 #Second or more round
-#                [ID,ttend,lonend,latend] = getTripsRome(line)
+                [ID,ttend,lonend,latend] = getTripsShanghai(line)
         elif city == "beijing":
-            # ROME
             if ttstart == -1:
                 #First round
                 [ID,ttstart,lonstart,latstart] = getTripsBeijing(line)
@@ -603,7 +636,7 @@ def checkValidTime(t):
     t = float(t)
     if t > DAYSTART and t < DAYEND:
         return True
-#    print("NOT Valid Time")
+    print("NOT Valid Time")
 #    print(t)
 #    print(DAYSTART)
 #    print(DAYEND)
