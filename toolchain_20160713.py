@@ -750,7 +750,7 @@ def cleanTrace(file):
             for i in range(1,numtime):
                 thislat = float(thislat) + float(difflat)
                 thislng = float(thislng) + float(difflng)
-                prints(FINALDIR + "/" + os.path.basename(file), ll[0],lasttime + i * increment,thislat,str(thislng) + " #INTERPOLATE POINT")
+                prints(FINALDIR + "/" + os.path.basename(file), ll[0],lasttime + i * increment,str(thislng),str(thislat) + " #INTERPOLATE POINT")
 #                if not checkValidPoint(thislat, thislng):
 #                    continue
 #                else:
@@ -761,7 +761,7 @@ def cleanTrace(file):
 
         else:
 #            print("NO INTERPOLATE",lasttime,thistime)
-            dist = measure(float(ll[3]),float(ll[2]),float(lastlng),float(lastlat))
+            dist = measure(float(ll[2]),float(ll[3]),float(lastlng),float(lastlat))
             difftime = max(1,difftime)
             speed = dist/difftime
             if speed < 200:

@@ -30,5 +30,5 @@ then
 	./toolchain_20160713.py $1 True 39.3 115.2 41.1 117.6 20080205 20080206 beijing
 elif [ $2 == "shanghai" ]
 then
-	./toolchain_20160713.py $1 True 30.5 120.5 32 122.2 20080205 20080206 shanghai
+	./toolchain_20160713.py $1 True 30.5 120.5 32 122.2 20070220 20070221 shanghai
 fi
