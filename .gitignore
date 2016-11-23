@@ -5,3 +5,8 @@ shanghai/
 sf/
 nyc/
 raw
+*speeds*
+stats*
+*_out_*
+*_tmp_*
+errors*

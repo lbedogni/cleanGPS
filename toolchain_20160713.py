@@ -64,6 +64,8 @@ fwNear.close()
 
 S_BASE = "http://router.project-osrm.org/route/v1/driving/"
 S_BASE_NEAREST = "http://router.project-osrm.org/nearest/v1/driving/"
+S_BASE = "http://localhost:5000/route/v1/driving/"
+S_BASE_NEAREST = "http://localhost:5000/nearest/v1/driving/"
 S_END = "&output=gpx"
 
 def cleanFiles():
@@ -118,7 +120,7 @@ def queryServiceNearest(lat, lon):
     xmlstring = ""
     while toRepeat:
         try:
-            print("Querying service")
+#            print("Querying service")
             print(stringToGet)
             xmlstring = urllib.request.urlopen(stringToGet, timeout = 2).read().decode("utf-8")
             #xmlstring = urllib.request.urlopen(req).read()
@@ -138,7 +140,7 @@ def queryServiceNearest(lat, lon):
         except:
             print("Connection problem. Pausing and repeating.")
             print(stringToGet)
-            print(xmlstring)
+#            print(xmlstring)
             time.sleep(5)
 #    print("DONE")
 #    print(xmlstring)
@@ -159,24 +161,28 @@ def queryService(lat1, lon1, lat2, lon2,gpx):
     xmlstring = ""
     while toRepeat:
         try:
-            print("Querying now")
+#            print("Querying now")
             print(stringToGet)
             xmlstring = urllib.request.urlopen(stringToGet, timeout = 5).read().decode("utf-8")
-            print(xmlstring)
-            print("******")
+#            print(xmlstring)
+#            print("******")
             #xmlstring = urllib.request.urlopen(req).read()
             toRepeat = False
         except urllib.error.HTTPError as e:
             # Probably error 400
 #            toRepeat = False
-            print("HTTP Error")
-            print(str(e) + " - " + str(e.code) + " - " + str(e.reason))
+#            print("HTTP Error")
+#            print(str(e) + " - " + str(e.code) + " - " + str(e.reason))
 #            ff = open('exception_errors.log','a+')
 #            ff.write(str(e.code) + " " + str(e.reason) + "\n")
 #            ff.close()
 #            return False
-            time.sleep(5)
-            stringToGet = composeString(float(lat1) + 0.001,float(lon1) + 0.001,float(lat2) + 0.001,float(lon2) + 0.001,gpx)
+#            time.sleep(5)
+            lat1 = float(lat1) + 0.001
+            lon1 = float(lon1) + 0.001
+            lat2 = float(lat2) + 0.001
+            lon2 = float(lon2) + 0.001
+            stringToGet = composeString(float(lat1),float(lon1),float(lat2),float(lon2),gpx)
             print("We have changed the coordinates to: " + str(stringToGet))
             req = urllib.request.Request(
                     stringToGet, 
@@ -188,7 +194,7 @@ def queryService(lat1, lon1, lat2, lon2,gpx):
         except:
             print("Connection problem. Pausing and repeating.")
             print(stringToGet)
-            print(xmlstring)
+#            print(xmlstring)
             time.sleep(5)
 #    print("DONE")
     print(xmlstring)
@@ -211,22 +217,22 @@ def parseQueryResponse(file, tree, id, difftime,  ttstart, line, gpx):
     else:
         # JSON
         import json
-        print(tree)
+#        print(tree)
         jj = json.loads(tree)
-        print("ALALALA TTSTART is " + str(ttstart))
-        print("ALALALA DIFFTIME is + " + str(difftime))
+#        print("ALALALA TTSTART is " + str(ttstart))
+#        print("ALALALA DIFFTIME is + " + str(difftime))
         jj = jj['routes'][0]
-        print("------")
-        print(jj)
-        print(jj['geometry'])
-        print("------")
+#        print("------")
+#        print(jj)
+#        print(jj['geometry'])
+#        print("------")
         if 'geometry' in jj:
-            print("***********************************************************************")
+#            print("***********************************************************************")
             numelem = len(jj['geometry'])
             if numelem >= 2:
                 numelem -= 1
             deltatime = difftime / numelem
-            print("TTSTART is " + str(ttstart) + ", NUMELEM is " + str(numelem) + ", DIFFTIME is " + str(difftime) + ", DELTATIME is " + str(deltatime))
+#            print("TTSTART is " + str(ttstart) + ", NUMELEM is " + str(numelem) + ", DIFFTIME is " + str(difftime) + ", DELTATIME is " + str(deltatime))
             #fwDebug = open('nearest_debug.log','a')
             if deltatime > 1:
                 timenow = ttstart
@@ -249,7 +255,7 @@ def parseQueryResponse(file, tree, id, difftime,  ttstart, line, gpx):
                         #print("NEAREST_DEBUG ** CACHE_MISS ** Coords are: " + str(item[1]) + " " + str(item[0]))
                         nearest = queryServiceNearest(item[1],item[0])
                         ii = json.loads(nearest)['waypoints'][0]
-                        print(ii)
+#                        print(ii)
                         import re
                         nearest_road = re.sub("\(.*\)",'',str(ii['name']).strip()).strip()
                         CACHE_NEAREST[str(item[1]) + "," + str(item[0])] = nearest_road
@@ -282,7 +288,7 @@ def parseQueryResponse(file, tree, id, difftime,  ttstart, line, gpx):
                 time1 = -1
                 time2 = -1
  #               totalTime = 0
-                print(allItems)
+#                print(allItems)
                 summaTimes = 0
                 summaDistance = 0
                 lastIntermediate = 0
@@ -298,9 +304,9 @@ def parseQueryResponse(file, tree, id, difftime,  ttstart, line, gpx):
                         time1 = ttstart
                         time2 = ttstart
                         lastIntermediate = ttstart
-                        print("First time since point1 is -1")
-                        print(point1)
-                        print(intermediatePoint)
+#                        print("First time since point1 is -1")
+#                        print(point1)
+#                        print(intermediatePoint)
                     else:
                         point2 = (allItems[intermediatePoint][1],allItems[intermediatePoint][0])
                         distance = vincenty(point1, point2).miles * 1609.34
@@ -336,7 +342,7 @@ def parseQueryResponse(file, tree, id, difftime,  ttstart, line, gpx):
                         allMinusOne = False
 
                 avgSpeed = totalDistance / (difftime * 1.0)
-                print("THE AVG SPEED IS " + str(avgSpeed))
+#                print("THE AVG SPEED IS " + str(avgSpeed))
                 if avgSpeed > 50:
                     fwDDD = open('highspeeds.txt','a')
                     countAllDist = 0
@@ -406,12 +412,12 @@ def parseQueryResponse(file, tree, id, difftime,  ttstart, line, gpx):
                 #print("*** END ***")
                 return True
             else:
-                print("****")
-                print(deltatime)
-                print(difftime)
-                print(numelem)
-                print(line)
-                print("----")
+#                print("****")
+#                print(deltatime)
+#                print(difftime)
+#                print(numelem)
+#                print(line)
+#                print("----")
                 timenow = ttstart
                 deltaitems = numelem / difftime
                 counter = 1
@@ -426,7 +432,7 @@ def parseQueryResponse(file, tree, id, difftime,  ttstart, line, gpx):
 
         else:
             # Need to parse data from the caller
-            print("PROBLEM")
+#            print("PROBLEM")
             return False
 
 def getTripsNYC(line):
@@ -444,7 +450,7 @@ def getTripsNYC(line):
         return ll[0],ttstart,ttend,lonstart,latstart,lonend,latend
     
 def getTripsRome(line):
-    print(line)
+#    print(line)
     ll = line.split(",")
     ID = ll[0].strip()
     tt = math.ceil(float(ll[1].strip()))
@@ -456,7 +462,7 @@ def getTripsRome(line):
         return ID,tt,lon,lat
 
 def getTripsShanghai(line):
-    print(line)
+#    print(line)
     ll = line.split(",")
     ID = ll[0].strip()
     #tt = math.ceil(float(ll[1].strip()))
@@ -482,14 +488,14 @@ def getTripsSF(line):
     lon = ll[1].strip()
 
 def getTripsBeijing(line):
-    print(line)
+#    print(line)
     ll = line.split(",")
     ID = ll[0].strip()
     #tt = math.ceil(float(ll[1].strip()))
     from datetime import datetime
     #tt = int(datetime.datetime.fromtimestamp(int(tt)).strftime("%Y-%m-%d $H:$M:$S"))
     tt = datetime.strptime(ll[1].strip(), '%Y-%m-%d %H:%M:%S').timestamp()
-    print(tt)
+#    print(tt)
     lon = ll[2].strip()
     lat = ll[3].strip()
     if lon.strip() == "" or lat.strip() == "":
@@ -636,7 +642,7 @@ def checkValidTime(t):
     t = float(t)
     if t > DAYSTART and t < DAYEND:
         return True
-    print("NOT Valid Time")
+#    print("NOT Valid Time")
 #    print(t)
 #    print(DAYSTART)
 #    print(DAYEND)
@@ -649,9 +655,9 @@ def checkValidPoint(lat, lon):
     if lat > LATMIN and lat < LATMAX and lon > LONMIN and lon < LONMAX:
         return True
     else:
-        print("NOT Valid Point")
-        print(str(lat) + "," + str(LATMIN) +"-"+str(LATMAX))
-        print(str(lon) + "," + str(LONMIN) +"-"+str(LONMAX))
+#        print("NOT Valid Point")
+#        print(str(lat) + "," + str(LATMIN) +"-"+str(LATMAX))
+#        print(str(lon) + "," + str(LONMIN) +"-"+str(LONMAX))
         return False
 #    changed = False
 #    global FOUNDLATMAX
@@ -820,31 +826,35 @@ def getMeasuresBetweenPoints(file):
 createDirs()
 counterFiles = 0
 if TRIPS:
-    for file in os.listdir(WORKINGDIR):
-        if os.path.isfile(WORKINGDIR + "/.done_" + sys.argv[7] + "_" + file):
-            print(sys.argv[7] + " - Already parsed file: " + str(file))
+    for ffile in os.listdir(WORKINGDIR):
+        if os.path.isfile(WORKINGDIR + "/.done_" + sys.argv[7] + "_" + ffile):
+#            print(sys.argv[7] + " - Already parsed file: " + str(file))
+            pass
         else:
-            if ".done_" in file:
+            if ".done_" in ffile:
                 continue
-            print(str(sys.argv[7]) + "-" + str(sys.argv[8]) + ". Starting with file: " + file)
+            print(str(sys.argv[7]) + "-" + str(sys.argv[8]) + ". Starting with file: " + ffile)
             for item in os.listdir(OUTPUTDIR):
-                if file in item:
+                if item == (os.path.basename(ffile) + "_" + os.path.basename(ffile).split('.')[0] + ".csv"):
+                    print("Starting..... Removing file " + str(item))
                     os.remove(OUTPUTDIR + "/" + item)
             print("Parsing")
-            getPointsFromTrips(file)
-            ftemp = open(WORKINGDIR + "/.done_" + sys.argv[7] + "_" + file, 'w+').close()
+            getPointsFromTrips(ffile)
+            if os.path.isfile(OUTPUTDIR + "/" + os.path.basename(ffile) + "_" + os.path.basename(ffile).split('.')[0] + ".csv"):
+                ftemp = open(WORKINGDIR + "/.done_" + sys.argv[7] + "_" + ffile, 'w+').close()
     counterFiles = 1
     print(sys.argv[7] + " - Now starting to clean the trace")
-    for file in os.listdir(OUTPUTDIR):
-        if os.path.isfile(OUTPUTDIR + "/.done_" + sys.argv[7] + "_" + file):
+    for file2 in os.listdir(OUTPUTDIR):
+        print("file is " + str(file2))
+        if os.path.isfile(OUTPUTDIR + "/.done_" + sys.argv[7] + "_" + file2):
             continue
-        if ".done" in file:
+        if ".done" in file2:
             continue
         print(str(counterFiles) + " files done")
         counterFiles += 1
-        cleanTrace(OUTPUTDIR + "/" + file)
-        if os.path.isfile(FINALDIR + "/" + os.path.basename(file)):
-            ftemp = open(OUTPUTDIR + "/.done_" + sys.argv[7] + "_" + file, 'w+').close()
+        cleanTrace(OUTPUTDIR + "/" + file2)
+        if os.path.isfile(FINALDIR + "/" + os.path.basename(file2)):
+            ftemp = open(OUTPUTDIR + "/.done_" + sys.argv[7] + "_" + file2, 'w+').close()
 
 else:
     cleanTrace(WORKINGDIR + "/" + file)
