@@ -424,7 +424,7 @@ def parseQueryResponse(file, tree, id, difftime,  ttstart, line, gpx):
                 for item in jj['geometry']['coordinates']:
                     if counter == 1 or counter % deltaitems == 0:
 #                        print("*** " + str(item[1]) + " " + str(item[0]))
-                        prints(file, str(id), str(math.ceil(timenow)), item[1], str(item[0]) + " # from parseQueryResponse - " + str(line).strip())
+                        prints(file, str(id), str(math.ceil(timenow)), item[0], str(item[1]) + " # from parseQueryResponse - " + str(line).strip())
                         timenow = float(timenow) + 1
                     counter += 1
                 return True
@@ -606,7 +606,7 @@ def getPointsFromTrips(file):
             continue
         
         if difftime == 0 and (city in ["rome","sf","turin","palermo","milan","bari"]):
-            prints(OUTPUTDIR + "/" + str(file) + "_" + str(ID) + ".csv", str(ID), str(ttend), latend, lonend)
+            prints(OUTPUTDIR + "/" + str(file) + "_" + str(ID) + ".csv", str(ID), str(ttend), lonend, latend)
         elif difftime == 0:
             TIME_ZERO += 1
             open('stats_' + str(sys.argv[7]) + '.data','w+').write("TIME_ZERO = " + str(TIME_ZERO) + ", TIME_LESS_ZERO = " + str(TIME_NEGATIVE) + "\n")
@@ -839,8 +839,11 @@ if TRIPS:
                     print("Starting..... Removing file " + str(item))
                     os.remove(OUTPUTDIR + "/" + item)
             print("Parsing")
+            if os.path.isfile(OUTPUTDIR + "/" + os.path.basename(ffile) + "_" + os.path.basename(ffile).split('.')[0] + ".txt.csv"):
+                ftemp = open(WORKINGDIR + "/.done_" + sys.argv[7] + "_" + ffile, 'w+').close()
+                continue
             getPointsFromTrips(ffile)
-            if os.path.isfile(OUTPUTDIR + "/" + os.path.basename(ffile) + "_" + os.path.basename(ffile).split('.')[0] + ".csv"):
+            if os.path.isfile(OUTPUTDIR + "/" + os.path.basename(ffile) + "_" + os.path.basename(ffile).split('.')[0] + ".txt.csv"):
                 ftemp = open(WORKINGDIR + "/.done_" + sys.argv[7] + "_" + ffile, 'w+').close()
     counterFiles = 1
     print(sys.argv[7] + " - Now starting to clean the trace")
