@@ -18,7 +18,7 @@ then
 	./toolchain_20160713.py $1 True 45 8.5 46 10 ${DANTIMESTART} ${DANTIMESTOP} milan
 elif [ $2 == "bari" ]
 then
-	./toolchain_20160713.py $1 True 40.8 16.5 41.2 17.1 ${DANTIMESTART} ${DANTIMESTOP} bari
+	./toolchain_20160713.py $1 True 40.8 16.5 41.2 17.1 ${3} ${4} bari
 elif [ $2 == "palermo" ]
 then
 	./toolchain_20160713.py $1 True 38 13 38.5 13.5 ${DANTIMESTART} ${DANTIMESTOP} palermo
