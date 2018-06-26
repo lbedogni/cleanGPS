@@ -11,6 +11,8 @@ import math
 
 from geopy.distance import vincenty
 
+print("In toolchain")
+
 WORKINGDIR = sys.argv[1]
 TRIPS = sys.argv[2]
 LATMIN = float(sys.argv[3])
@@ -23,6 +25,7 @@ PREFIX = sys.argv[9]
 OUTPUTDIR = PREFIX + "_tmp_" + sys.argv[7]
 FINALDIR = PREFIX + "_out_" + sys.argv[8]
 city = sys.argv[9]
+
 
 TIME_ZERO = 0
 TIME_NEGATIVE = 0
@@ -61,12 +64,15 @@ for line in fwNear.readlines():
     ll = line.split(",")
     CACHE_NEAREST[str(ll[0]) + "," + str(ll[1])] = str(ll[2]).strip()
 fwNear.close()
+print("1")
 
 S_BASE = "http://router.project-osrm.org/route/v1/driving/"
 S_BASE_NEAREST = "http://router.project-osrm.org/nearest/v1/driving/"
 S_BASE = "http://localhost:5000/route/v1/driving/"
 S_BASE_NEAREST = "http://localhost:5000/nearest/v1/driving/"
 S_END = "&output=gpx"
+
+print("All ok")
 
 def cleanFiles():
     if os.path.isdir(OUTPUTDIR):
@@ -327,7 +333,7 @@ def parseQueryResponse(file, tree, id, difftime,  ttstart, line, gpx):
                         point1 = point2
 
                 #print("TIMEDEBUG = " + str(sorted(allDistances)))
-                print("Total Distance = " + str(summaDistance) + " - Total time = " + str(summaTimes) + " - GPS delta time = " + str(difftime))
+                print("File: " + str(file) + " - Total Distance = " + str(summaDistance) + " - Total time = " + str(summaTimes) + " - GPS delta time = " + str(difftime))
                 allMinusOne = True
                 totalDistance = 0
                 factor = 1
@@ -454,13 +460,48 @@ def getTripsRome(line):
     ll = line.split(",")
     ID = ll[0].strip()
     tt = math.ceil(float(ll[1].strip()))
-    lat = ll[2].strip()
-    lon = ll[3].strip()
+    lon = ll[2].strip()
+    lat = ll[3].strip()
     if lon.strip() == "" or lat.strip() == "":
         return
     else:
         return ID,tt,lon,lat
 
+def getTripsCologne(line):
+#    print(line)
+    ll = line.split(",")
+    ID = ll[0].strip()
+    #tt = math.ceil(float(ll[1].strip()))
+    from datetime import datetime
+    #tt = int(datetime.datetime.fromtimestamp(int(tt)).strftime("%Y-%m-%d $H:$M:$S"))
+    tt = datetime.strptime(ll[1].strip(), '%Y-%m-%d %H:%M:%S').timestamp()
+    print(tt)
+    lon = ll[2].strip()
+    lat = ll[3].strip()
+    if lon.strip() == "" or lat.strip() == "":
+        return
+    else:
+        return ID,tt,lon,lat
+    
+def getTripsShenzen(line):
+#    print(line)
+    ll = line.split(",")
+    ID = ll[0].strip()
+    #tt = math.ceil(float(ll[1].strip()))
+    from datetime import datetime
+    #tt = int(datetime.datetime.fromtimestamp(int(tt)).strftime("%Y-%m-%d $H:$M:$S"))
+    tt = datetime.strptime(ll[1].strip(), '%Y-%m-%d %H:%M:%S').timestamp()
+    print(tt)
+    lon = ll[2].strip()
+    if (' ' in ll[3].strip()):
+        lat = ll[3].strip().split(' ')[1]
+    else:
+        lat = ll[3].strip()
+    if lon.strip() == "" or lat.strip() == "":
+        return
+    else:
+        return ID,tt,lon,lat
+    
 def getTripsShanghai(line):
 #    print(line)
     ll = line.split(",")
@@ -566,6 +607,29 @@ def getPointsFromTrips(file):
             else:
                 #Second or more round
                 [ID,ttend,lonend,latend] = getTripsShanghai(line)
+        elif city == "cologne":
+            if ttstart == -1:
+                #First round
+                [ID,ttstart,lonstart,latstart] = getTripsCologne(line)
+                continue
+            else:
+                #Second or more round
+                [ID,ttend,lonend,latend] = getTripsCologne(line)
+        elif city == "shenzen":
+            if ttstart == -1:
+                #First round
+                try:
+                    [ID,ttstart,lonstart,latstart] = getTripsShenzen(line)
+                except:
+                    pass
+                continue
+            else:
+                #Second or more round
+                try:
+                    [ID,ttend,lonend,latend] = getTripsShenzen(line)
+                except:
+                    print("Problems in reading, I continue")
+                    continue
         elif city == "beijing":
             if ttstart == -1:
                 #First round
@@ -605,7 +669,7 @@ def getPointsFromTrips(file):
             latstart = latend
             continue
         
-        if difftime == 0 and (city in ["rome","sf","turin","palermo","milan","bari"]):
+        if difftime == 0 and (city in ["rome","sf","turin","palermo","milan","bari","cologne"]):
             prints(OUTPUTDIR + "/" + str(file) + "_" + str(ID) + ".csv", str(ID), str(ttend), lonend, latend)
         elif difftime == 0:
             TIME_ZERO += 1
@@ -630,7 +694,7 @@ def getPointsFromTrips(file):
             open('errors_' + str(sys.argv[7]) + '.data','a+').write(line)
 #            print("difftime <= 0:" + str(line))
 
-        allCities = ["rome","sf","turin","bari","palermo","milan","beijing","shanghai"]
+        allCities = ["rome","sf","turin","bari","palermo","milan","beijing","shanghai","cologne","shenzen"]
         if city in allCities:
             ttstart = ttend
             lonstart = lonend
@@ -825,10 +889,13 @@ def getMeasuresBetweenPoints(file):
 #cleanFiles()
 createDirs()
 counterFiles = 0
+print("Just before starting")
 if TRIPS:
+    print("Let's start")
     for ffile in os.listdir(WORKINGDIR):
+        print("File is - " + str(ffile))
         if os.path.isfile(WORKINGDIR + "/.done_" + sys.argv[7] + "_" + ffile):
-#            print(sys.argv[7] + " - Already parsed file: " + str(file))
+            print(sys.argv[7] + " - Already parsed file: " + str(ffile))
             pass
         else:
             if ".done_" in ffile:
@@ -837,10 +904,11 @@ if TRIPS:
             for item in os.listdir(OUTPUTDIR):
                 if item == (os.path.basename(ffile) + "_" + os.path.basename(ffile).split('.')[0] + ".csv"):
                     print("Starting..... Removing file " + str(item))
-                    os.remove(OUTPUTDIR + "/" + item)
+#                    os.remove(OUTPUTDIR + "/" + item)
             print("Parsing")
             if os.path.isfile(OUTPUTDIR + "/" + os.path.basename(ffile) + "_" + os.path.basename(ffile).split('.')[0] + ".txt.csv"):
                 ftemp = open(WORKINGDIR + "/.done_" + sys.argv[7] + "_" + ffile, 'w+').close()
+                print("We already have this")
                 continue
             getPointsFromTrips(ffile)
             if os.path.isfile(OUTPUTDIR + "/" + os.path.basename(ffile) + "_" + os.path.basename(ffile).split('.')[0] + ".txt.csv"):
